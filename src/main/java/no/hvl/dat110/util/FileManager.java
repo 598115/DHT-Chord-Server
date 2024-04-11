@@ -15,9 +15,10 @@ import java.security.NoSuchAlgorithmException;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Random;
 import java.util.Set;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -59,7 +60,13 @@ public class FileManager {
 	public void createReplicaFiles() {
 	 	
 		// set a loop where size = numReplicas
-		
+        int i = 0;
+		String[] names = new String[numReplicas];
+		while(numReplicas > i) {
+			names[i] = filename + i;
+			replicafiles[i] = Hash.hashOf(names[i]);
+			i++;
+		}
 		// replicate by adding the index to filename
 		
 		// hash the replica
@@ -81,8 +88,27 @@ public class FileManager {
     	int counter = 0;
 	
     	// Task1: Given a filename, make replicas and distribute them to all active peers such that: pred < replica <= peer
+
+		createReplicaFiles();
     	
     	// Task2: assign a replica as the primary for this file. Hint, see the slide (project 3) on Canvas
+
+		while(counter < numReplicas) {
+
+			BigInteger replicaHash = replicafiles[counter];
+            NodeInterface succ = chordnode.findSuccessor(replicaHash);
+
+            if(counter == index) {
+				succ.addKey(replicaHash);
+				succ.saveFileContent(filename, replicaHash, bytesOfFile, true);
+			}
+			else{
+                succ.addKey(replicaHash);
+				succ.saveFileContent(filename, replicaHash, bytesOfFile, false);
+			}	
+
+			counter++;
+		}
     	
     	// create replicas of the filename
     	
@@ -114,8 +140,18 @@ public class FileManager {
 		// Task: Given a filename, find all the peers that hold a copy of this file
 		
 		// generate the N replicas from the filename by calling createReplicaFiles()
+
+		createReplicaFiles();
 		
 		// iterate over the replicas of the file
+ 
+        int i = 0;
+		while(i < numReplicas) {
+            
+			BigInteger id = replicafiles[i];
+			activeNodesforFile.add(chordnode.findSuccessor(id).getFilesMetadata(id));
+			i++;
+		}
 		
 		// for each replica, do findSuccessor(replica) that returns successor s.
 		
@@ -129,20 +165,39 @@ public class FileManager {
 	/**
 	 * Find the primary server - Remote-Write Protocol
 	 * @return 
+	 * @throws RemoteException 
 	 */
-	public NodeInterface findPrimaryOfItem() {
+	public NodeInterface findPrimaryOfItem() throws RemoteException { //La til throws, kan fjernes
 
 		// Task: Given all the active peers of a file (activeNodesforFile()), find which is holding the primary copy
-		
+
+		Set<Message> nodesMetas = requestActiveNodesForFile(this.filename);
+		List<Message> list = new LinkedList<>();
+		nodesMetas.forEach(n -> list.add(n));
+		NodeInterface primaryNode = null;
 		// iterate over the activeNodesforFile
+
+		int i = 0;
+		while(i < list.size()) {
+			if(list.get(i).isPrimaryServer()) {
+				System.out.println("Primary check passed");
+				primaryNode = Util.getProcessStub(list.get(i).getNodeName(), list.get(i).getPort());
+				if(primaryNode != null) {
+					System.out.println("Primary retrieved");
+				}
+				else{System.out.println("Primary failed to retrieve");}
+			}
+			i++;
+		}
 		
 		// for each active peer (saved as Message)
 		
 		// use the primaryServer boolean variable contained in the Message class to check if it is the primary or not
-		
+     
+
 		// return the primary when found (i.e., use Util.getProcessStub to get the stub and return it)
 		
-		return null; 
+		return primaryNode; 
 	}
 	
     /**

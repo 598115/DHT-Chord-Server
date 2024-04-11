@@ -52,7 +52,7 @@ class TestMutex {
 		
 		p3.multicastReleaseLocks(activepeers); 		// reset all locks before voting for mutual exclusion
 		
-		// request to update the same file will happen concurrently - only one process should get the vote		
+		// request to update the same file will happen concurrently - only one process should get the vote
 		FileUpdater fu1 = new FileUpdater(p1, getPeerMessage(activepeers, p1.getNodeName()), newupdate.getBytes(), activepeers);
 		FileUpdater fu2 = new FileUpdater(p2, getPeerMessage(activepeers, p2.getNodeName()), newupdate.getBytes(), activepeers);
 		FileUpdater fu4 = new FileUpdater(p4, getPeerMessage(activepeers, p4.getNodeName()), newupdate.getBytes(), activepeers);

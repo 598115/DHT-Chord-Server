@@ -15,7 +15,6 @@ import org.apache.logging.log4j.Logger;
 import no.hvl.dat110.middleware.Message;
 import no.hvl.dat110.middleware.Node;
 import no.hvl.dat110.rpc.interfaces.NodeInterface;
-import no.hvl.dat110.util.Hash;
 import no.hvl.dat110.util.Util;
 
 /**
@@ -39,13 +38,27 @@ public class ChordLookup {
 		// check that key is a member of the set {nodeid+1,...,succID} i.e. (nodeid+1 <= key <= succID) using the checkInterval
 		
 		// if logic returns true, then return the successor
-		
+      
+
+		BigInteger succID = node.getSuccessor().getNodeID();
+		Boolean inRange = Util.checkInterval(key, node.getNodeID().add(BigInteger.ONE), succID);
+		if(inRange) {
+			//logger.info("Found successor for key: " + key + " Succ: " + node.getSuccessor().getNodeID());
+			return node.getSuccessor();
+		}
+	
 		// if logic returns false; call findHighestPredecessor(key)
+		NodeInterface nodeFound = findHighestPredecessor(key);
+
 		
 		// do highest_pred.findSuccessor(key) - This is a recursive call until logic returns true
-				
-		return null;					
+		NodeInterface result = nodeFound.findSuccessor(key);
+						
+		return result;
+
 	}
+					
+	
 	
 	/**
 	 * This method makes a remote call. Invoked from a local client
@@ -56,11 +69,25 @@ public class ChordLookup {
 	private NodeInterface findHighestPredecessor(BigInteger ID) throws RemoteException {
 		
 		// collect the entries in the finger table for this node
+
+		List<NodeInterface> table = node.getFingerTable();
 		
 		// starting from the last entry, iterate over the finger table
 		
 		// for each finger, obtain a stub from the registry
-		
+		int i = table.size() - 1;
+		while(i > 0) {
+			NodeInterface finger = table.get(i);
+			
+            Util.getProcessStub(finger.getNodeName(), finger.getPort());
+
+			if(Util.checkInterval(finger.getNodeID(), node.getNodeID().add(BigInteger.ONE), ID.subtract(BigInteger.ONE))) {
+				return finger;
+			}
+			i--;
+		}
+
+     
 		// check that finger is a member of the set {nodeID+1,...,ID-1} i.e. (nodeID+1 <= finger <= key-1) using the ComputeLogic
 		
 		// if logic returns true, then return the finger (means finger is the closest to key)
@@ -93,7 +120,7 @@ public class ChordLookup {
 				}
 			}
 			
-			logger.info("Finished copying file keys from successor "+ succ.getNodeName()+" to "+node.getNodeName());
+			logger.info("Finished copying file keys from successor "+ succ.getNodeName()+" to "+node.getNodeID());
 		} catch (RemoteException e) {
 			logger.error(e.getMessage());
 		}
